@@ -1,6 +1,6 @@
 # Claude Cron
 
-Tareas diferidas para AI coding assistants. MCP server + daemon que permite a cualquier AI coding assistant programar tareas para el futuro.
+Deferred tasks for AI coding assistants. MCP server + daemon that allows any AI coding assistant to schedule tasks for the future.
 
 ## Quickstart
 
@@ -10,9 +10,9 @@ bun test          # 38 tests
 bun run typecheck # tsc --noEmit
 ```
 
-## Configuración en Claude Code
+## Claude Code Configuration
 
-Añadir a `~/.claude/settings.json`:
+Add to `~/.claude/settings.json`:
 
 ```json
 {
@@ -32,17 +32,17 @@ Añadir a `~/.claude/settings.json`:
 }
 ```
 
-## Arquitectura
+## Architecture
 
 ```
 AI Assistant (Claude Code / Codex / Copilot)
     │ stdio (MCP protocol)
     ▼
-MCP Server (src/index.ts)          ← CRUD de tareas
+MCP Server (src/index.ts)          ← Task CRUD
     │ SQLite (WAL mode)
     ▼
-Runner / Daemon (src/runner.ts)    ← Loop: ejecuta tareas vencidas
-    ├─ reminder  → notificación + email + push
+Runner / Daemon (src/runner.ts)    ← Loop: executes due tasks
+    ├─ reminder  → notification + email + push
     ├─ shell     → Bun.spawn(command)
     ├─ claude    → claude -p --output-format text "prompt"
     ├─ codex     → codex --quiet "prompt"
@@ -51,13 +51,13 @@ Runner / Daemon (src/runner.ts)    ← Loop: ejecuta tareas vencidas
 
 ## MCP Tools
 
-| Tool | Descripción |
+| Tool | Description |
 |------|-------------|
-| `schedule_task` | Programa una tarea para el futuro |
-| `list_tasks` | Lista tareas (filtra por status, upcoming, tags) |
-| `cancel_task` | Cancela una tarea por ID |
-| `run_now` | Marca una tarea para ejecución inmediata |
-| `install_daemon` | Registra el runner como servicio del OS |
+| `schedule_task` | Schedule a task for the future |
+| `list_tasks` | List tasks (filter by status, upcoming, tags) |
+| `cancel_task` | Cancel a task by ID |
+| `run_now` | Mark a task for immediate execution |
+| `install_daemon` | Register the runner as an OS service |
 
 ### schedule_task
 
@@ -65,7 +65,7 @@ Runner / Daemon (src/runner.ts)    ← Loop: ejecuta tareas vencidas
 {
   name: "Nightly tests",
   type: "shell",              // reminder | shell | claude | codex | copilot
-  when: "daily at 3:00",      // ver "Expresiones when" abajo
+  when: "daily at 3:00",      // see "When expressions" below
   payload: {
     command: "cd ~/code/bfclaude && make test",  // shell
     // message: "...",         // reminder
@@ -80,23 +80,23 @@ Runner / Daemon (src/runner.ts)    ← Loop: ejecuta tareas vencidas
 }
 ```
 
-### Expresiones `when`
+### `when` Expressions
 
-| Tipo | Ejemplos |
+| Type | Examples |
 |------|----------|
-| Lenguaje natural | `"tomorrow 9:00"`, `"in 30 minutes"`, `"next friday at 3pm"` |
-| Cron (5 campos) | `"0 9 * * 1"`, `"*/5 * * * *"` |
+| Natural language | `"tomorrow 9:00"`, `"in 30 minutes"`, `"next friday at 3pm"` |
+| Cron (5 fields) | `"0 9 * * 1"`, `"*/5 * * * *"` |
 | ISO 8601 | `"2026-03-01T09:00:00Z"`, `"2026-03-01"` |
 | Shortcuts | `"every monday at 8"`, `"daily at 9:00"`, `"every 5 minutes"` |
 
-Parsing: chrono-node (natural) + croner (cron) + regex (shortcuts). Los shortcuts se evalúan antes de chrono-node para que "every monday at 8" no se interprete como fecha puntual.
+Parsing: chrono-node (natural) + croner (cron) + regex (shortcuts). Shortcuts are evaluated before chrono-node so that "every monday at 8" is not interpreted as a single date.
 
-## Estructura
+## Structure
 
 ```
 src/
-├── index.ts              # Entry point MCP server (5 tools)
-├── runner.ts             # Daemon: oneshot (launchd) o --loop (dev)
+├── index.ts              # MCP server entry point (5 tools)
+├── runner.ts             # Daemon: oneshot (launchd) or --loop (dev)
 ├── queue.ts              # SQLite: schema, CRUD, getDueTasks
 ├── scheduler.ts          # parseWhen(): chrono-node + croner + shortcuts
 ├── adapters/
@@ -107,8 +107,8 @@ src/
 ├── notify/
 │   ├── types.ts          # NotificationAdapter interface
 │   ├── desktop.ts        # node-notifier (cross-platform)
-│   ├── email.ts          # SMTP directo a Gmail (TLS 465)
-│   └── push.ts           # ntfy.sh (móvil + Apple Watch)
+│   ├── email.ts          # Direct SMTP to Gmail (TLS 465)
+│   └── push.ts           # ntfy.sh (mobile + Apple Watch)
 └── daemon/
     ├── types.ts          # DaemonInstaller interface
     ├── detect.ts         # process.platform → installer
@@ -119,75 +119,75 @@ src/
 
 ## Runner
 
-Dos modos:
+Two modes:
 
 ```bash
-# Oneshot (para launchd StartInterval / systemd timer)
+# Oneshot (for launchd StartInterval / systemd timer)
 bun run src/runner.ts
 
-# Loop continuo (para dev o KeepAlive)
+# Continuous loop (for dev or KeepAlive)
 bun run src/runner.ts --loop
 ```
 
-El daemon lee SQLite cada 60s (configurable con `CLAUDE_CRON_INTERVAL`), ejecuta tareas vencidas, y envía notificaciones.
+The daemon reads SQLite every 60s (configurable via `CLAUDE_CRON_INTERVAL`), executes due tasks, and sends notifications.
 
-Tareas cron se reprograman automáticamente tras completar (next_run recalculado). Tareas puntuales pasan a `completed` o `failed`.
+Cron tasks are automatically rescheduled after completion (next_run recalculated). One-off tasks transition to `completed` or `failed`.
 
 ## Daemon
 
 ```bash
-# Instalar (desde Claude Code via MCP tool install_daemon, o manualmente):
+# Install (from Claude Code via MCP tool install_daemon, or manually):
 # macOS:
-bun run src/daemon/launchd.ts  # genera plist + launchctl load
+bun run src/daemon/launchd.ts  # generates plist + launchctl load
 
-# Verificar
+# Verify
 launchctl list | grep claude-cron
 tail -f ~/Library/Logs/claude-cron.log
 
-# Desinstalar
+# Uninstall
 launchctl unload ~/Library/LaunchAgents/com.claude-cron.runner.plist
 ```
 
-## Notificaciones
+## Notifications
 
-| Canal | Requisitos | Env vars |
-|-------|-----------|----------|
-| Desktop | node-notifier (incluido) | — |
+| Channel | Requirements | Env vars |
+|---------|-------------|----------|
+| Desktop | node-notifier (included) | — |
 | Email | Gmail App Password | `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` |
-| Push (ntfy) | App ntfy en móvil/watch | `NTFY_TOPIC`, `NTFY_URL` (opt), `NTFY_TOKEN` (opt) |
+| Push (ntfy) | ntfy app on mobile/watch | `NTFY_TOPIC`, `NTFY_URL` (opt), `NTFY_TOKEN` (opt) |
 
-## Schema SQLite
+## SQLite Schema
 
 ```sql
 tasks (
   id TEXT PRIMARY KEY,          -- nanoid 12 chars
-  name, type, status,           -- tipo: reminder|shell|claude|codex|copilot
-  run_at INTEGER,               -- Unix ts (puntual)
-  cron TEXT,                    -- Expresión cron (recurrente)
-  payload TEXT,                 -- JSON según type
+  name, type, status,           -- type: reminder|shell|claude|codex|copilot
+  run_at INTEGER,               -- Unix ts (one-off)
+  cron TEXT,                    -- Cron expression (recurring)
+  payload TEXT,                 -- JSON per type
   notify_via TEXT,              -- JSON array: ["notification","email","push"]
-  notify_to TEXT,               -- Email destino
+  notify_to TEXT,               -- Destination email
   next_run, last_run,           -- Timestamps
-  run_count, last_result,       -- Ejecuciones + JSON resultado
+  run_count, last_result,       -- Executions + JSON result
   created_at, created_by, tags  -- Metadata
 )
 ```
 
-## Dependencias
+## Dependencies
 
 - `@modelcontextprotocol/sdk` — MCP protocol
-- `chrono-node` — Lenguaje natural → Date
+- `chrono-node` — Natural language → Date
 - `croner` — Cron parsing + next run
-- `nanoid` — IDs cortos
-- `node-notifier` — Notificaciones desktop cross-platform
-- `zod` — Validación de inputs MCP
+- `nanoid` — Short IDs
+- `node-notifier` — Cross-platform desktop notifications
+- `zod` — MCP input validation
 - `bun:sqlite` — built-in, zero deps
 
 ## TODO
 
-- [ ] Configurar MCP en settings.json reales y probar end-to-end
-- [ ] Instalar daemon con `install_daemon` y verificar ciclo completo
-- [ ] Configurar ntfy para push al móvil/watch
-- [ ] npm publish (nombre TBD)
-- [ ] CI con tests en macOS + Linux
-- [ ] README con GIFs de uso real
+- [ ] Configure MCP in real settings.json and test end-to-end
+- [ ] Install daemon with `install_daemon` and verify full cycle
+- [ ] Set up ntfy for push to mobile/watch
+- [ ] npm publish (name TBD)
+- [ ] CI with tests on macOS + Linux
+- [ ] README with real usage GIFs
