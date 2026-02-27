@@ -1,5 +1,9 @@
 # Claude Cron
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1.svg)](https://bun.sh)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org)
+
 Deferred tasks for AI coding assistants. MCP server + daemon that allows any AI coding assistant to schedule tasks for the future.
 
 ## Quickstart
