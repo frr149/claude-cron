@@ -6,6 +6,8 @@
 
 Deferred tasks for AI coding assistants. MCP server + daemon that allows any AI coding assistant to schedule tasks for the future.
 
+> **How does this compare to `/loop`?** Claude Code 2.1.71 added `/loop` for in-session recurring tasks. It's great for ephemeral monitoring but dies when you close the terminal. claude-cron runs as an OS daemon — your tasks survive reboots and execute while you sleep. [Read the full comparison](https://frr.dev/posts/claude-code-loop-vs-cron-scheduling/).
+
 ## Quickstart
 
 ```bash
